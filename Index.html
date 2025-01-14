@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, initial-scale=1, maximum-scale=1">
+    <title>HTML Live Preview</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/theme/material-darker.min.css">
+    <style>
+        /* Основные стили */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #2b2b2b;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden; /* Убираем прокрутку */
+        }
+
+        h1 {
+            margin-top: 60px;
+            font-size: 28px;
+            text-align: center;
+            animation: fadeIn 1s ease;
+        }
+
+        #editor {
+            width: 90%;
+            max-width: 1200px;
+            height: 400px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #444;
+            transform: translateY(20px);
+            opacity: 0;
+            animation: slideUp 1s ease forwards;
+        }
+
+        .button-container {
+            position: absolute;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            top: 10px;
+            padding: 0 20px;
+        }
+
+        button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+            animation: fadeIn 1.5s ease;
+        }
+
+        button:hover {
+            transform: scale(1.2);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .svg-icon {
+            width: 30px;
+            height: 30px;
+            fill: #ffffff;
+        }
+
+        .fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(26, 26, 26, 0.95);
+            display: none;
+            z-index: 1000;
+            opacity: 0;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .fullscreen iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            animation: zoomIn 0.5s ease;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1100;
+            transform: scale(1);
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+
+        .close-button:hover {
+            transform: scale(1.2);
+            background-color: #e60000;
+        }
+
+        /* Мобильная оптимизация */
+        @media (max-width: 768px) {
+            #editor {
+                height: 300px;
+            }
+
+            .svg-icon {
+                width: 24px;
+                height: 24px;
+            }
+
+            button {
+                padding: 8px;
+            }
+        }
+
+        /* Анимации */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes zoomIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>HTML Live Preview</h1>
+    <div id="editor"></div>
+
+    <!-- Контейнер кнопок -->
+    <div class="button-container">
+        <!-- Кнопка очистки -->
+        <button onclick="clearEditor()" title="Очистить поле">
+            <svg class="svg-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M3 6h18v2H3zM6 9v10h12V9H6zm6-5h2v2h-2z"/>
+            </svg>
+        </button>
+        <!-- Кнопка показа результата -->
+        <button onclick="openFullscreen()" title="Показать результат">
+            <svg class="svg-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M10 3H3v7h2V5h5V3zm11 0h-7v2h5v5h2V3zM3 14v7h7v-2H5v-5H3zm16 5h-5v2h7v-7h-2v5z"/>
+            </svg>
+        </button>
+    </div>
+
+    <div class="fullscreen" id="fullscreen">
+        <button class="close-button" onclick="closeFullscreen()">×</button>
+        <iframe id="outputFrame"></iframe>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/addon/edit/closetag.min.js"></script>
+    <script>
+        // Инициализация редактора CodeMirror
+        const editor = CodeMirror(document.getElementById("editor"), {
+            mode: "htmlmixed",
+            theme: "material-darker",
+            lineNumbers: true,
+            autoCloseTags: true,
+            viewportMargin: Infinity,
+        });
+
+        // Открыть полноэкранный просмотр
+        function openFullscreen() {
+            const htmlCode = editor.getValue();
+            const outputFrame = document.getElementById('outputFrame');
+
+            // Вставляем HTML-код в iframe
+            const frameDoc = outputFrame.contentDocument || outputFrame.contentWindow.document;
+            frameDoc.open();
+            frameDoc.write(htmlCode);
+            frameDoc.close();
+
+            // Показываем fullscreen окно
+            const fullscreenDiv = document.getElementById('fullscreen');
+            fullscreenDiv.style.display = 'block';
+            fullscreenDiv.style.animation = 'fadeIn 0.5s ease forwards';
+        }
+
+        // Закрыть полноэкранный просмотр
+        function closeFullscreen() {
+            const fullscreenDiv = document.getElementById('fullscreen');
+            fullscreenDiv.style.animation = 'fadeOut 0.5s ease forwards';
+            setTimeout(() => {
+                fullscreenDiv.style.display = 'none';
+            }, 500);
+        }
+
+        // Очистить текстовое поле
+        function clearEditor() {
+            editor.setValue("");
+        }
+    </script>
+</body>
+</html>
